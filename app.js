@@ -21,6 +21,10 @@ let editingTrackId = null;
 let selectedAudioFile = null;
 let selectedImageFile = null;
 
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+let visStarted = false;
+
 // Цвета визуализатора
 const DEFAULT_VIS_COLORS = {
   top: 'rgba(110, 145, 230, 0.92)',
@@ -302,8 +306,16 @@ function extractVisualizerColors(imgUrl) {
   img.src = imgUrl;
 }
 
-// Визуализатор + цепочка эквалайзера
+// Визуализатор + цепочка эквалайзера (с обходом Web Audio на iOS для фонового звука)
 function initVisualizer() {
+  if (isIOS) {
+    if (!visStarted) {
+      visStarted = true;
+      drawVisualizer();
+    }
+    return;
+  }
+
   if (audioCtx) {
     if (audioCtx.state === 'suspended') audioCtx.resume();
     return;
@@ -338,7 +350,10 @@ function initVisualizer() {
 
   applyEQ();
   dataArray = new Uint8Array(analyser.frequencyBinCount);
-  drawVisualizer();
+  if (!visStarted) {
+    visStarted = true;
+    drawVisualizer();
+  }
 }
 
 function drawVisualizer() {
@@ -353,8 +368,18 @@ function drawVisualizer() {
     analyser.getByteFrequencyData(dataArray);
   }
 
+  const t = Date.now() / 220;
+
   for (let i = 0; i < barCount; i++) {
-    const val = analyser && !audio.paused ? dataArray[i] : 14;
+    let val = 14;
+    if (!audio.paused) {
+      if (analyser) {
+        val = dataArray[i];
+      } else if (isIOS) {
+        val = 45 + Math.abs(Math.sin(t + i * 0.45) * Math.cos(t * 0.6 + i * 0.2)) * 165;
+      }
+    }
+
     const height = Math.max(4, (val / 255) * (canvas.height - 4));
     const x = i * (barWidth + gap);
     const y = (canvas.height - height) / 2;
