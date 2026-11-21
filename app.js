@@ -29,8 +29,8 @@ let visStarted = false;
 
 // Цвета визуализатора
 const DEFAULT_VIS_COLORS = {
-  top: 'rgba(110, 145, 230, 0.92)',
-  bottom: 'rgba(150, 85, 215, 0.85)'
+  top: 'rgba(130, 165, 255, 0.95)',
+  bottom: 'rgba(175, 110, 245, 0.88)'
 };
 let visColors = { ...DEFAULT_VIS_COLORS };
 
@@ -267,7 +267,7 @@ sleepBtns.forEach((btn) => {
   btn.addEventListener('click', () => setSleepTimer(parseInt(btn.dataset.min, 10)));
 });
 
-// Извлечение затемнённых цветов обложки для визуализатора
+// Извлечение контрастных цветов обложки для визуализатора
 function extractVisualizerColors(imgUrl) {
   if (!imgUrl) {
     visColors = { ...DEFAULT_VIS_COLORS };
@@ -299,10 +299,10 @@ function extractVisualizerColors(imgUrl) {
       }
     }
 
-    const darken = (val, factor) => Math.max(24, Math.min(210, Math.round(val * factor)));
+    const lift = (val, minVal) => Math.max(minVal, Math.min(255, Math.round(val * 1.15 + 50)));
     visColors = {
-      top: `rgba(${darken(r1 / c1, 0.65)}, ${darken(g1 / c1, 0.65)}, ${darken(b1 / c1, 0.65)}, 0.95)`,
-      bottom: `rgba(${darken(r2 / c2, 0.45)}, ${darken(g2 / c2, 0.45)}, ${darken(b2 / c2, 0.45)}, 0.9)`
+      top: `rgba(${lift(r1 / c1, 130)}, ${lift(g1 / c1, 130)}, ${lift(b1 / c1, 130)}, 0.95)`,
+      bottom: `rgba(${lift(r2 / c2, 95)}, ${lift(g2 / c2, 95)}, ${lift(b2 / c2, 95)}, 0.85)`
     };
   };
   img.src = imgUrl;
@@ -373,12 +373,12 @@ function drawVisualizer() {
   const t = Date.now() / 220;
 
   for (let i = 0; i < barCount; i++) {
-    let val = 14;
+    let val = 18;
     if (!audio.paused) {
       if (analyser) {
         val = dataArray[i];
       } else if (isIOS) {
-        val = 45 + Math.abs(Math.sin(t + i * 0.45) * Math.cos(t * 0.6 + i * 0.2)) * 165;
+        val = 50 + Math.abs(Math.sin(t + i * 0.45) * Math.cos(t * 0.6 + i * 0.2)) * 170;
       }
     }
 
@@ -513,7 +513,7 @@ function renderTracks() {
     item.className = 'track-item' + (idx === currentIndex ? ' active' : '');
     item.onclick = () => {
       playTrack(idx);
-      if (window.innerWidth <= 820) setMobileTab('player');
+      if (window.innerWidth <= 820 || window.innerHeight <= 520) setMobileTab('player');
     };
 
     item.addEventListener('contextmenu', (e) => {
@@ -1022,3 +1022,7 @@ seekBar.addEventListener('input', () => {
 setVolume(lastVolume);
 applyEQ();
 initDB();
+if (!visStarted) {
+  visStarted = true;
+  drawVisualizer();
+}
