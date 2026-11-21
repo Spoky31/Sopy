@@ -880,7 +880,7 @@ body.is-playing .cover-box {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding: calc(10px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));
+    padding: calc(10px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) 0 calc(10px + env(safe-area-inset-left));
   }
 
   .app-layout {
@@ -950,13 +950,17 @@ body.is-playing .cover-box {
     cursor: pointer;
   }
 
-  /* Нижняя навигация */
+  /* Нижняя навигация — плотно к нижнему краю экрана */
   .mobile-nav {
     display: flex;
     justify-content: space-around;
     align-items: center;
-    padding: 8px 6px;
-    border-radius: 22px;
+    margin: 0 calc(-10px - env(safe-area-inset-right)) 0 calc(-10px - env(safe-area-inset-left));
+    padding: 10px 6px calc(8px + env(safe-area-inset-bottom));
+    border-radius: 24px 24px 0 0;
+    border-bottom: none;
+    border-left: none;
+    border-right: none;
     flex-shrink: 0;
   }
 
@@ -1031,6 +1035,6 @@ body.is-playing .cover-box {
   }
 
   .mobile-nav {
-    padding: 5px 6px;
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
   }
 }
