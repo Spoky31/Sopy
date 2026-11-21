@@ -17,6 +17,9 @@ let draggedIndex = null;
 let searchQuery = '';
 let showOnlyFavorites = false;
 
+let isShuffle = localStorage.getItem('sopy_shuffle') === 'true';
+let isRepeatOne = localStorage.getItem('sopy_repeat') === 'true';
+
 let editingTrackId = null;
 let selectedAudioFile = null;
 let selectedImageFile = null;
@@ -80,6 +83,9 @@ const prevBtn = document.getElementById('prev-btn');
 const nextBtn = document.getElementById('next-btn');
 const skipBackBtn = document.getElementById('skip-back-btn');
 const skipForwardBtn = document.getElementById('skip-forward-btn');
+const shuffleBtn = document.getElementById('shuffle-btn');
+const repeatBtn = document.getElementById('repeat-btn');
+const repeatLabel = document.getElementById('repeat-label');
 
 // Поиск и фильтры
 const searchInput = document.getElementById('search-input');
@@ -136,6 +142,25 @@ const imagePreview = document.getElementById('image-preview');
 const titleInput = document.getElementById('title-input');
 const artistInput = document.getElementById('artist-input');
 const lyricsInput = document.getElementById('lyrics-input');
+
+// Перемешать и Повтор трека
+function updateModeUI() {
+  shuffleBtn.classList.toggle('active', isShuffle);
+  repeatBtn.classList.toggle('active', isRepeatOne);
+  repeatLabel.textContent = isRepeatOne ? 'Повтор 1' : 'Повтор';
+}
+
+shuffleBtn.addEventListener('click', () => {
+  isShuffle = !isShuffle;
+  localStorage.setItem('sopy_shuffle', String(isShuffle));
+  updateModeUI();
+});
+
+repeatBtn.addEventListener('click', () => {
+  isRepeatOne = !isRepeatOne;
+  localStorage.setItem('sopy_repeat', String(isRepeatOne));
+  updateModeUI();
+});
 
 // Переключение мобильных вкладок
 function setMobileTab(tabName) {
@@ -812,6 +837,14 @@ function updateMediaSession(title, artist, coverUrl) {
 
 function playNext() {
   if (!tracks.length) return;
+  if (isShuffle && tracks.length > 1) {
+    let nextIdx;
+    do {
+      nextIdx = Math.floor(Math.random() * tracks.length);
+    } while (nextIdx === currentIndex);
+    playTrack(nextIdx);
+    return;
+  }
   playTrack((currentIndex + 1) % tracks.length);
 }
 
@@ -1012,7 +1045,14 @@ audio.addEventListener('timeupdate', () => {
   syncLyrics(audio.currentTime);
 });
 
-audio.addEventListener('ended', playNext);
+audio.addEventListener('ended', () => {
+  if (isRepeatOne) {
+    audio.currentTime = 0;
+    audio.play();
+  } else {
+    playNext();
+  }
+});
 
 seekBar.addEventListener('input', () => {
   audio.currentTime = seekBar.value;
@@ -1021,6 +1061,7 @@ seekBar.addEventListener('input', () => {
 
 setVolume(lastVolume);
 applyEQ();
+updateModeUI();
 initDB();
 if (!visStarted) {
   visStarted = true;
