@@ -42,12 +42,12 @@ let visStarted = false;
 
 // Цвета визуализатора
 const DEFAULT_VIS_COLORS = {
-  top: 'rgba(130, 165, 255, 0.95)',
-  bottom: 'rgba(175, 110, 245, 0.88)'
+  top: 'rgba(142, 168, 255, 0.92)',
+  bottom: 'rgba(165, 128, 240, 0.82)'
 };
 const MONO_VIS_COLORS = {
-  top: 'rgba(255, 255, 255, 0.95)',
-  bottom: 'rgba(165, 168, 178, 0.82)'
+  top: 'rgba(245, 246, 250, 0.92)',
+  bottom: 'rgba(155, 158, 168, 0.76)'
 };
 let visColors = { ...DEFAULT_VIS_COLORS };
 
@@ -135,7 +135,7 @@ const queueView = document.getElementById('queue-view');
 const lyricsView = document.getElementById('lyrics-view');
 const soundView = document.getElementById('sound-view');
 
-// Элементы текста, разметки и полного экрана
+// Текст, разметка и полный экран
 const lyricsToolbar = document.getElementById('lyrics-toolbar');
 const lyricsSyncModeBtn = document.getElementById('lyrics-sync-mode-btn');
 const lyricsFullscreenBtn = document.getElementById('lyrics-fullscreen-btn');
@@ -273,7 +273,7 @@ function playNextInQueue(trackId) {
   showToast(`Далее: ${track.name}`);
 }
 
-// ==================== ПАРСЕР ID3-ТЕГОВ (НАЗВАНИЕ, АРТИСТ, ОБЛОЖКА) ====================
+// ==================== ПАРСЕР ID3-ТЕГОВ ====================
 async function parseAudioMetadata(file) {
   const result = { title: '', artist: '', coverFile: null };
   try {
@@ -376,8 +376,8 @@ async function parseAudioMetadata(file) {
   return result;
 }
 
-// ==================== ПЛАВНОЕ ЗАТУХАНИЕ ЗВУКА (FADE-OUT) ====================
-function fadeOutAndRun(callback, durationMs = 260) {
+// ==================== ПЛАВНОЕ ЗАТУХАНИЕ ЗВУКА ====================
+function fadeOutAndRun(callback, durationMs = 240) {
   clearInterval(fadeTimer);
   fadeTimer = null;
 
@@ -739,7 +739,7 @@ sleepBtns.forEach((btn) => {
   btn.addEventListener('click', () => setSleepTimer(parseInt(btn.dataset.min, 10)));
 });
 
-// Извлечение контрастных цветов обложки для визуализатора
+// Цвета визуализатора
 function extractVisualizerColors(imgUrl) {
   if (activeTheme === 'mono') {
     visColors = { ...MONO_VIS_COLORS };
@@ -779,16 +779,16 @@ function extractVisualizerColors(imgUrl) {
       }
     }
 
-    const lift = (val, minVal) => Math.max(minVal, Math.min(255, Math.round(val * 1.15 + 50)));
+    const lift = (val, minVal) => Math.max(minVal, Math.min(255, Math.round(val * 1.1 + 45)));
     visColors = {
-      top: `rgba(${lift(r1 / c1, 130)}, ${lift(g1 / c1, 130)}, ${lift(b1 / c1, 130)}, 0.95)`,
-      bottom: `rgba(${lift(r2 / c2, 95)}, ${lift(g2 / c2, 95)}, ${lift(b2 / c2, 95)}, 0.85)`
+      top: `rgba(${lift(r1 / c1, 130)}, ${lift(g1 / c1, 130)}, ${lift(b1 / c1, 130)}, 0.92)`,
+      bottom: `rgba(${lift(r2 / c2, 95)}, ${lift(g2 / c2, 95)}, ${lift(b2 / c2, 95)}, 0.82)`
     };
   };
   img.src = imgUrl;
 }
 
-// Визуализатор + цепочка эквалайзера (с обходом Web Audio на iOS для фонового звука)
+// Визуализатор + эквалайзер (с обходом Web Audio на iOS для фонового звука)
 function initVisualizer() {
   if (isIOS) {
     if (!visStarted) {
@@ -853,12 +853,12 @@ function drawVisualizer() {
   const t = Date.now() / 220;
 
   for (let i = 0; i < barCount; i++) {
-    let val = 18;
+    let val = 16;
     if (!audio.paused) {
       if (analyser) {
         val = dataArray[i];
       } else if (isIOS) {
-        val = 50 + Math.abs(Math.sin(t + i * 0.45) * Math.cos(t * 0.6 + i * 0.2)) * 170;
+        val = 48 + Math.abs(Math.sin(t + i * 0.45) * Math.cos(t * 0.6 + i * 0.2)) * 165;
       }
     }
 
@@ -872,7 +872,7 @@ function drawVisualizer() {
 
     ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.roundRect(x, y, barWidth, height, 4);
+    ctx.roundRect(x, y, barWidth, height, 3);
     ctx.fill();
   }
 }
@@ -1012,7 +1012,6 @@ deletePlaylistBtn.addEventListener('click', () => {
   };
 });
 
-// Модалка добавления конкретного трека в плейлисты
 function openTrackPlaylistsModal(trackId) {
   const track = getTrackById(trackId);
   if (!track) return;
@@ -1216,7 +1215,7 @@ function renderTracks() {
   if (!visibleTracks.length) {
     let emptyMsg = 'Нет треков';
     if (searchQuery) emptyMsg = 'Ничего не найдено';
-    else if (activePl) emptyMsg = 'Плейлист пуст. Нажмите ☰ на любом треке, чтобы добавить его сюда.';
+    else if (activePl) emptyMsg = 'Плейлист пуст. Нажмите ☰ на треке, чтобы добавить его сюда.';
     else if (activeFilter === 'fav') emptyMsg = 'В избранном пока пусто';
     trackListEl.innerHTML = `<div class="empty-list">${emptyMsg}</div>`;
     return;
@@ -1481,7 +1480,6 @@ function renderLyrics(lyricsText) {
       }
     };
 
-    // Дублируем строчку в полноэкранный режим
     const fsDiv = document.createElement('div');
     fsDiv.className = 'fs-lyric-line';
     fsDiv.textContent = lineObj.text;
@@ -1534,7 +1532,6 @@ function syncLyrics(currentTime) {
   });
 }
 
-// Полноэкранный текст
 lyricsFullscreenBtn.addEventListener('click', () => {
   const track = currentTrackId !== null ? getTrackById(currentTrackId) : null;
   fsLyricsTitle.textContent = track ? track.name : 'Выберите трек';
