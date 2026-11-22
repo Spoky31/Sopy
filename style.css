@@ -170,6 +170,7 @@ body.is-ios .volume-block {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.14);
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .mini-add-btn {
@@ -460,7 +461,7 @@ body.is-ios .volume-block {
   text-shadow: 0 0 18px rgba(130, 160, 255, 0.55);
 }
 
-/* Звук: Эквалайзер и Таймер сна */
+/* Звук: Эквалайзер, Таймер сна, Статистика и Бэкап */
 .sound-section {
   padding: 12px 10px;
   border-radius: 18px;
@@ -469,7 +470,14 @@ body.is-ios .volume-block {
   margin-bottom: 10px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+}
+
+.section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .section-title {
@@ -486,7 +494,7 @@ body.is-ios .volume-block {
 
 .preset-btn,
 .sleep-btn {
-  padding: 6px 10px;
+  padding: 7px 11px;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.06);
@@ -495,6 +503,12 @@ body.is-ios .volume-block {
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s, color 0.2s;
+}
+
+.preset-btn:active,
+.sleep-btn:active {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
 }
 
 .preset-btn.active,
@@ -544,8 +558,63 @@ body.is-ios .volume-block {
 
 .sleep-status {
   font-size: 12px;
+  line-height: 1.4;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
+}
+
+/* Топ треков в статистике */
+.top-tracks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.top-track-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.top-track-row:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.top-track-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.top-track-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: #9cb6ff;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+/* Кнопки бэкапа */
+.backup-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.backup-actions .preset-btn {
+  flex: 1;
+  text-align: center;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 /* Центральная панель плеера */

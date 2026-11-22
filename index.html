@@ -192,7 +192,7 @@
         </div>
       </div>
 
-      <!-- Звук: Эквалайзер и Таймер сна -->
+      <!-- Звук: Эквалайзер, Таймер сна, Статистика и Бэкап -->
       <div id="sound-view" class="panel-body hidden">
         <div id="eq-section" class="sound-section">
           <div class="section-title">Эквалайзер</div>
@@ -230,6 +230,31 @@
             <button class="sleep-btn" data-min="45">45 мин</button>
             <button class="sleep-btn" data-min="60">60 мин</button>
           </div>
+        </div>
+
+        <!-- Статистика прослушиваний -->
+        <div class="sound-section">
+          <div class="section-header-row">
+            <span class="section-title">Статистика</span>
+            <span id="total-plays-badge" class="badge">0 прослуш.</span>
+          </div>
+          <div id="top-tracks-list" class="top-tracks-list">
+            <div class="sleep-status">Пока нет прослушиваний</div>
+          </div>
+        </div>
+
+        <!-- Резервная копия медиатеки -->
+        <div class="sound-section">
+          <div class="section-title">Резервная копия</div>
+          <div class="sleep-status">Сохраните все треки, обложки и плейлисты в один файл, чтобы не потерять при очистке браузера.</div>
+          <div class="backup-actions">
+            <button id="export-backup-btn" class="preset-btn">↓ Сохранить</button>
+            <label class="preset-btn backup-import-label">
+              ↑ Загрузить
+              <input id="import-backup-input" type="file" accept=".json,application/json" hidden />
+            </label>
+          </div>
+          <div id="backup-status" class="sleep-status hidden"></div>
         </div>
       </div>
     </aside>

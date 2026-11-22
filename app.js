@@ -29,6 +29,7 @@ let editingTrackId = null;
 let selectedAudioFile = null;
 let selectedImageFile = null;
 let managingPlaylistsForTrackId = null;
+let fadeTimer = null;
 
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -137,6 +138,13 @@ const presetBtns = document.querySelectorAll('.preset-btn');
 const sleepBtns = document.querySelectorAll('.sleep-btn');
 const sleepStatusEl = document.getElementById('sleep-status');
 
+// Статистика и бэкап
+const totalPlaysBadge = document.getElementById('total-plays-badge');
+const topTracksList = document.getElementById('top-tracks-list');
+const exportBackupBtn = document.getElementById('export-backup-btn');
+const importBackupInput = document.getElementById('import-backup-input');
+const backupStatusEl = document.getElementById('backup-status');
+
 // Модальное окно добавления/редактирования трека
 const modal = document.getElementById('add-modal');
 const modalTitle = document.getElementById('modal-title');
@@ -180,6 +188,336 @@ function getActivePlaylist() {
 function isTrackInAnyPlaylist(trackId) {
   return playlists.some((p) => Array.isArray(p.trackIds) && p.trackIds.includes(trackId));
 }
+
+// ==================== ПАРСЕР ID3-ТЕГОВ (НАЗВАНИЕ, АРТИСТ, ОБЛОЖКА) ====================
+async function parseAudioMetadata(file) {
+  const result = { title: '', artist: '', coverFile: null };
+  try {
+    const slice = file.slice(0, Math.min(file.size, 1024 * 1024));
+    const buf = await slice.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+
+    if (bytes.length >= 10 && bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33) {
+      const version = bytes[3];
+      const tagSize =
+        ((bytes[6] & 0x7f) << 21) |
+        ((bytes[7] & 0x7f) << 14) |
+        ((bytes[8] & 0x7f) << 7) |
+        (bytes[9] & 0x7f);
+
+      const end = Math.min(bytes.length, 10 + tagSize);
+      let pos = 10;
+
+      const decodeText = (enc, dataBytes) => {
+        if (!dataBytes.length) return '';
+        let charset = 'iso-8859-1';
+        if (enc === 1 || enc === 2) charset = 'utf-16';
+        else if (enc === 3) charset = 'utf-8';
+        try {
+          return new TextDecoder(charset).decode(dataBytes).replace(/\0/g, '').trim();
+        } catch {
+          return new TextDecoder('utf-8').decode(dataBytes).replace(/\0/g, '').trim();
+        }
+      };
+
+      while (pos + 10 <= end) {
+        const frameId = String.fromCharCode(bytes[pos], bytes[pos + 1], bytes[pos + 2], bytes[pos + 3]);
+        if (!/^[A-Z0-9]{4}$/.test(frameId)) break;
+
+        let frameSize = 0;
+        if (version === 4) {
+          frameSize =
+            ((bytes[pos + 4] & 0x7f) << 21) |
+            ((bytes[pos + 5] & 0x7f) << 14) |
+            ((bytes[pos + 6] & 0x7f) << 7) |
+            (bytes[pos + 7] & 0x7f);
+        } else {
+          frameSize =
+            (bytes[pos + 4] << 24) |
+            (bytes[pos + 5] << 16) |
+            (bytes[pos + 6] << 8) |
+            bytes[pos + 7];
+        }
+
+        if (frameSize <= 0 || pos + 10 + frameSize > end) break;
+        const payload = bytes.subarray(pos + 10, pos + 10 + frameSize);
+
+        if (frameId === 'TIT2' && payload.length > 1) {
+          result.title = decodeText(payload[0], payload.subarray(1));
+        } else if (frameId === 'TPE1' && payload.length > 1) {
+          result.artist = decodeText(payload[0], payload.subarray(1));
+        } else if (frameId === 'APIC' && payload.length > 4 && !result.coverFile) {
+          const enc = payload[0];
+          let idx = 1;
+          let mime = '';
+          while (idx < payload.length && payload[idx] !== 0) {
+            mime += String.fromCharCode(payload[idx++]);
+          }
+          idx++; // null byte after mime
+          idx++; // picture type byte
+          if (enc === 1 || enc === 2) {
+            while (idx + 1 < payload.length && !(payload[idx] === 0 && payload[idx + 1] === 0)) idx += 2;
+            idx += 2;
+          } else {
+            while (idx < payload.length && payload[idx] !== 0) idx++;
+            idx++;
+          }
+          if (idx < payload.length) {
+            const imgBytes = payload.subarray(idx);
+            const cleanMime = mime && mime.startsWith('image/') ? mime : 'image/jpeg';
+            result.coverFile = new File([imgBytes], 'cover.jpg', { type: cleanMime });
+          }
+        }
+
+        pos += 10 + frameSize;
+      }
+    }
+
+    // Запасной вариант: ID3v1 в последних 128 байтах файла
+    if ((!result.title || !result.artist) && file.size >= 128) {
+      const tailBuf = await file.slice(file.size - 128, file.size).arrayBuffer();
+      const tail = new Uint8Array(tailBuf);
+      if (tail[0] === 0x54 && tail[1] === 0x41 && tail[2] === 0x47) {
+        const dec = new TextDecoder('utf-8');
+        if (!result.title) {
+          result.title = dec.decode(tail.subarray(3, 33)).replace(/\0/g, '').trim();
+        }
+        if (!result.artist) {
+          result.artist = dec.decode(tail.subarray(33, 63)).replace(/\0/g, '').trim();
+        }
+      }
+    }
+  } catch {
+    // Игнорируем неподдерживаемые теги
+  }
+  return result;
+}
+
+// ==================== ПЛАВНОЕ ЗАТУХАНИЕ ЗВУКА (FADE-OUT) ====================
+function fadeOutAndRun(callback, durationMs = 260) {
+  clearInterval(fadeTimer);
+  fadeTimer = null;
+
+  if (isIOS || audio.paused || audio.volume <= 0.02) {
+    callback();
+    return;
+  }
+
+  const startVol = audio.volume;
+  const steps = 10;
+  const stepMs = Math.max(15, Math.floor(durationMs / steps));
+  let step = 0;
+
+  fadeTimer = setInterval(() => {
+    step++;
+    const nextVol = Math.max(0, startVol * (1 - step / steps));
+    audio.volume = nextVol;
+    if (step >= steps) {
+      clearInterval(fadeTimer);
+      fadeTimer = null;
+      callback();
+      audio.volume = startVol;
+    }
+  }, stepMs);
+}
+
+// ==================== СТАТИСТИКА ПРОСЛУШИВАНИЙ ====================
+function incrementPlayCount(trackId) {
+  if (!db) return;
+  const tx = db.transaction(STORE_NAME, 'readwrite');
+  const store = tx.objectStore(STORE_NAME);
+  const req = store.get(trackId);
+  req.onsuccess = () => {
+    const rec = req.result;
+    if (!rec) return;
+    rec.playCount = (rec.playCount || 0) + 1;
+    store.put(rec);
+  };
+  tx.oncomplete = () => {
+    const localTrack = getTrackById(trackId);
+    if (localTrack) localTrack.playCount = (localTrack.playCount || 0) + 1;
+    renderStats();
+  };
+}
+
+function renderStats() {
+  const total = tracks.reduce((sum, t) => sum + (t.playCount || 0), 0);
+  totalPlaysBadge.textContent = `${total} прослуш.`;
+
+  const top = [...tracks]
+    .filter((t) => (t.playCount || 0) > 0)
+    .sort((a, b) => (b.playCount || 0) - (a.playCount || 0))
+    .slice(0, 5);
+
+  if (!top.length) {
+    topTracksList.innerHTML = '<div class="sleep-status">Пока нет прослушиваний</div>';
+    return;
+  }
+
+  topTracksList.innerHTML = '';
+  top.forEach((t, idx) => {
+    const row = document.createElement('div');
+    row.className = 'top-track-row';
+    row.onclick = () => playTrackById(t.id);
+
+    const name = document.createElement('div');
+    name.className = 'top-track-name';
+    name.textContent = `${idx + 1}. ${t.name}`;
+
+    const count = document.createElement('div');
+    count.className = 'top-track-count';
+    count.textContent = `${t.playCount}×`;
+
+    row.append(name, count);
+    topTracksList.appendChild(row);
+  });
+}
+
+// ==================== ЭКСПОРТ / ИМПОРТ БЭКАПА ====================
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    if (!blob) {
+      resolve(null);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function dataUrlToBlob(dataUrl) {
+  if (!dataUrl) return null;
+  const res = await fetch(dataUrl);
+  return await res.blob();
+}
+
+function showBackupStatus(text) {
+  backupStatusEl.textContent = text;
+  backupStatusEl.classList.remove('hidden');
+}
+
+exportBackupBtn.addEventListener('click', async () => {
+  if (!tracks.length) {
+    showBackupStatus('Медиатека пуста — нечего сохранять.');
+    return;
+  }
+  try {
+    showBackupStatus('Упаковка резервной копии...');
+    const serializedTracks = [];
+    for (const t of tracks) {
+      serializedTracks.push({
+        oldId: t.id,
+        name: t.name,
+        artist: t.artist || '',
+        lyrics: t.lyrics || '',
+        favorite: Boolean(t.favorite),
+        playCount: t.playCount || 0,
+        audioDataUrl: await blobToDataUrl(t.audioBlob),
+        coverDataUrl: await blobToDataUrl(t.coverBlob)
+      });
+    }
+
+    const payload = {
+      app: 'Sopy',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      tracks: serializedTracks,
+      playlists: playlists.map((p) => ({
+        name: p.name,
+        trackIds: Array.isArray(p.trackIds) ? p.trackIds : []
+      }))
+    };
+
+    const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const dateStr = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `sopy-backup-${dateStr}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    showBackupStatus(`Сохранено треков: ${serializedTracks.length}`);
+  } catch {
+    showBackupStatus('Не удалось создать резервную копию.');
+  }
+});
+
+importBackupInput.addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+
+  try {
+    showBackupStatus('Восстановление треков...');
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if (!data || data.app !== 'Sopy' || !Array.isArray(data.tracks)) {
+      showBackupStatus('Неверный формат файла бэкапа.');
+      return;
+    }
+
+    const idMap = new Map();
+    let importedCount = 0;
+
+    for (const item of data.tracks) {
+      if (!item.audioDataUrl) continue;
+      const existing = tracks.find(
+        (t) => t.name === item.name && (t.artist || '') === (item.artist || '')
+      );
+      if (existing) {
+        idMap.set(item.oldId, existing.id);
+        continue;
+      }
+
+      const audioBlob = await dataUrlToBlob(item.audioDataUrl);
+      const coverBlob = await dataUrlToBlob(item.coverDataUrl);
+
+      const newId = await new Promise((resolve) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const req = tx.objectStore(STORE_NAME).add({
+          name: item.name || 'Без названия',
+          artist: item.artist || '',
+          lyrics: item.lyrics || '',
+          favorite: Boolean(item.favorite),
+          playCount: item.playCount || 0,
+          audioBlob,
+          coverBlob
+        });
+        req.onsuccess = (ev) => resolve(ev.target.result);
+      });
+
+      idMap.set(item.oldId, newId);
+      importedCount++;
+    }
+
+    if (Array.isArray(data.playlists)) {
+      for (const pl of data.playlists) {
+        const mappedIds = (pl.trackIds || [])
+          .map((oldId) => idMap.get(oldId))
+          .filter(Boolean);
+        if (!mappedIds.length && !pl.name) continue;
+
+        await new Promise((resolve) => {
+          const tx = db.transaction(PLAYLIST_STORE, 'readwrite');
+          tx.objectStore(PLAYLIST_STORE).add({
+            name: pl.name || 'Плейлист',
+            trackIds: mappedIds
+          });
+          tx.oncomplete = resolve;
+        });
+      }
+    }
+
+    reloadData();
+    showBackupStatus(`Восстановлено новых треков: ${importedCount}`);
+  } catch {
+    showBackupStatus('Ошибка при чтении файла бэкапа.');
+  }
+});
 
 // Перемешать и Повтор трека
 function updateModeUI() {
@@ -302,8 +640,10 @@ function setSleepTimer(minutes) {
 function updateSleepCountdown() {
   const diff = Math.max(0, Math.ceil((sleepEndTime - Date.now()) / 1000));
   if (diff <= 0) {
-    audio.pause();
-    setPlayingState(false);
+    fadeOutAndRun(() => {
+      audio.pause();
+      setPlayingState(false);
+    }, 600);
     setSleepTimer(0);
     return;
   }
@@ -473,12 +813,10 @@ function reloadData() {
     tracks = tracksReq.result || [];
     playlists = playlistsReq.result || [];
 
-    // Если активный плейлист был удалён — вернуться во «Все»
     if (activeFilter.startsWith('pl:') && !getActivePlaylist()) {
       activeFilter = 'all';
     }
 
-    // Синхронизировать очередь с существующими треками
     const validIds = new Set(tracks.map((t) => t.id));
     queueIds = queueIds.filter((id) => validIds.has(id));
     if (!queueIds.length && tracks.length) {
@@ -488,6 +826,7 @@ function reloadData() {
     renderPlaylistBar();
     renderTracks();
     renderQueue();
+    renderStats();
     updateCurrentActionsUI();
   };
 }
@@ -797,7 +1136,6 @@ function renderTracks() {
     const item = document.createElement('div');
     item.className = 'track-item' + (track.id === currentTrackId ? ' active' : '');
     item.onclick = () => {
-      // Обновляем очередь под текущий открытый список/плейлист
       queueIds = visibleTracks.map((t) => t.id);
       activeContextLabel = getCurrentContextName();
       playTrackById(track.id);
@@ -979,7 +1317,6 @@ function deleteTrack(id) {
   const tx = db.transaction([STORE_NAME, PLAYLIST_STORE], 'readwrite');
   tx.objectStore(STORE_NAME).delete(id);
 
-  // Удаляем ID трека из всех плейлистов
   const plStore = tx.objectStore(PLAYLIST_STORE);
   const plReq = plStore.getAll();
   plReq.onsuccess = () => {
@@ -1068,6 +1405,8 @@ function resetPlayerUI() {
 function playTrackById(id) {
   const track = getTrackById(id);
   if (!track) return;
+  clearInterval(fadeTimer);
+  fadeTimer = null;
   initVisualizer();
 
   currentTrackId = id;
@@ -1079,8 +1418,13 @@ function playTrackById(id) {
   if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);
   currentAudioUrl = URL.createObjectURL(track.audioBlob);
 
+  if (!isIOS) {
+    audio.volume = parseFloat(volumeBar.value) || lastVolume || 1;
+  }
   audio.src = currentAudioUrl;
-  audio.play();
+  audio.play().then(() => {
+    incrementPlayCount(id);
+  }).catch(() => {});
 
   applyContextBadgeUI();
   currentTitleEl.textContent = track.name;
@@ -1221,13 +1565,25 @@ modal.addEventListener('click', (e) => {
   if (e.target === modal) closeModal();
 });
 
-audioInput.addEventListener('change', (e) => {
+audioInput.addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
   selectedAudioFile = file;
   audioLabel.textContent = file.name;
+
+  // Авточтение ID3-тегов и встроенной обложки из MP3
+  const meta = await parseAudioMetadata(file);
   if (!titleInput.value.trim()) {
-    titleInput.value = file.name.replace(/\.[^/.]+$/, '');
+    titleInput.value = meta.title || file.name.replace(/\.[^/.]+$/, '');
+  }
+  if (!artistInput.value.trim() && meta.artist) {
+    artistInput.value = meta.artist;
+  }
+  if (!selectedImageFile && meta.coverFile) {
+    selectedImageFile = meta.coverFile;
+    imageLabel.textContent = 'Обложка из файла';
+    imagePreview.src = URL.createObjectURL(meta.coverFile);
+    imagePreview.classList.remove('hidden');
   }
 });
 
@@ -1279,11 +1635,11 @@ saveTrackBtn.addEventListener('click', () => {
       artist: artistInput.value.trim(),
       lyrics: lyricsInput.value,
       favorite: activeFilter === 'fav',
+      playCount: 0,
       audioBlob: selectedAudioFile,
       coverBlob: selectedImageFile || null
     });
 
-    // Если открыт конкретный плейлист — сразу добавляем новый трек в него
     const activePl = getActivePlaylist();
     if (activePl) {
       addReq.onsuccess = (e) => {
@@ -1316,20 +1672,31 @@ playBtn.addEventListener('click', () => {
   }
   if (!audio.src) return;
   if (audio.paused) {
+    clearInterval(fadeTimer);
+    fadeTimer = null;
+    if (!isIOS) audio.volume = parseFloat(volumeBar.value) || lastVolume || 1;
     audio.play();
     setPlayingState(true);
   } else {
-    audio.pause();
     setPlayingState(false);
+    fadeOutAndRun(() => {
+      audio.pause();
+    });
   }
 });
 
-nextBtn.addEventListener('click', playNext);
-prevBtn.addEventListener('click', playPrev);
+nextBtn.addEventListener('click', () => {
+  fadeOutAndRun(playNext, 160);
+});
+prevBtn.addEventListener('click', () => {
+  fadeOutAndRun(playPrev, 160);
+});
 skipBackBtn.addEventListener('click', () => skipBy(-10));
 skipForwardBtn.addEventListener('click', () => skipBy(10));
 
 volumeBar.addEventListener('input', () => {
+  clearInterval(fadeTimer);
+  fadeTimer = null;
   setVolume(parseFloat(volumeBar.value));
 });
 
@@ -1377,6 +1744,7 @@ audio.addEventListener('ended', () => {
   if (isRepeatOne) {
     audio.currentTime = 0;
     audio.play();
+    if (currentTrackId !== null) incrementPlayCount(currentTrackId);
   } else {
     playNext();
   }
