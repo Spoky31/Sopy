@@ -21,6 +21,8 @@ let draggedIndex = null;
 
 let searchQuery = '';
 let activeFilter = 'all'; // 'all' | 'fav' | 'pl:<id>'
+let activeTheme = localStorage.getItem('sopy_theme') || 'adaptive';
+let isSyncMode = false;
 
 let isShuffle = localStorage.getItem('sopy_shuffle') === 'true';
 let isRepeatOne = localStorage.getItem('sopy_repeat') === 'true';
@@ -30,6 +32,7 @@ let selectedAudioFile = null;
 let selectedImageFile = null;
 let managingPlaylistsForTrackId = null;
 let fadeTimer = null;
+let toastTimer = null;
 
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -41,6 +44,10 @@ let visStarted = false;
 const DEFAULT_VIS_COLORS = {
   top: 'rgba(130, 165, 255, 0.95)',
   bottom: 'rgba(175, 110, 245, 0.88)'
+};
+const MONO_VIS_COLORS = {
+  top: 'rgba(255, 255, 255, 0.95)',
+  bottom: 'rgba(165, 168, 178, 0.82)'
 };
 let visColors = { ...DEFAULT_VIS_COLORS };
 
@@ -70,6 +77,7 @@ let sleepEndTime = null;
 const audio = document.getElementById('audio');
 const canvas = document.getElementById('visualizer');
 const ctx = canvas.getContext('2d');
+const toastEl = document.getElementById('toast');
 const trackListEl = document.getElementById('track-list');
 const queueListEl = document.getElementById('queue-list');
 const queueHintEl = document.getElementById('queue-hint');
@@ -127,7 +135,25 @@ const queueView = document.getElementById('queue-view');
 const lyricsView = document.getElementById('lyrics-view');
 const soundView = document.getElementById('sound-view');
 
-// Элементы эквалайзера и таймера сна
+// Элементы текста, разметки и полного экрана
+const lyricsToolbar = document.getElementById('lyrics-toolbar');
+const lyricsSyncModeBtn = document.getElementById('lyrics-sync-mode-btn');
+const lyricsFullscreenBtn = document.getElementById('lyrics-fullscreen-btn');
+const lyricsSyncPanel = document.getElementById('lyrics-sync-panel');
+const stampLineBtn = document.getElementById('stamp-line-btn');
+const clearStampsBtn = document.getElementById('clear-stamps-btn');
+
+const lyricsFsModal = document.getElementById('lyrics-fullscreen-modal');
+const fsLyricsTitle = document.getElementById('fs-lyrics-title');
+const fsLyricsArtist = document.getElementById('fs-lyrics-artist');
+const fsLyricsBody = document.getElementById('fs-lyrics-body');
+const closeFsLyricsBtn = document.getElementById('close-fs-lyrics-btn');
+const fsPrevBtn = document.getElementById('fs-prev-btn');
+const fsPlayBtn = document.getElementById('fs-play-btn');
+const fsNextBtn = document.getElementById('fs-next-btn');
+
+// Темы, эквалайзер и таймер сна
+const themeBtns = document.querySelectorAll('.theme-btn');
 const eqBass = document.getElementById('eq-bass');
 const eqMid = document.getElementById('eq-mid');
 const eqTreble = document.getElementById('eq-treble');
@@ -187,6 +213,64 @@ function getActivePlaylist() {
 
 function isTrackInAnyPlaylist(trackId) {
   return playlists.some((p) => Array.isArray(p.trackIds) && p.trackIds.includes(trackId));
+}
+
+function showToast(text) {
+  toastEl.textContent = text;
+  toastEl.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toastEl.classList.add('hidden');
+  }, 2000);
+}
+
+// ==================== ТЕМЫ ОФОРМЛЕНИЯ ====================
+function applyTheme(themeName) {
+  activeTheme = themeName;
+  document.body.setAttribute('data-theme', themeName);
+  localStorage.setItem('sopy_theme', themeName);
+
+  themeBtns.forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.theme === themeName);
+  });
+
+  if (themeName === 'mono') {
+    visColors = { ...MONO_VIS_COLORS };
+  } else {
+    extractVisualizerColors(currentCoverUrl);
+  }
+}
+
+themeBtns.forEach((btn) => {
+  btn.addEventListener('click', () => applyTheme(btn.dataset.theme));
+});
+
+// ==================== ИГРАТЬ СЛЕДУЮЩИМ В ОЧЕРЕДИ ====================
+function playNextInQueue(trackId) {
+  const track = getTrackById(trackId);
+  if (!track) return;
+
+  if (currentTrackId === null) {
+    queueIds = [trackId];
+    playTrackById(trackId);
+    return;
+  }
+
+  if (trackId === currentTrackId) {
+    showToast('Этот трек уже играет');
+    return;
+  }
+
+  queueIds = queueIds.filter((id) => id !== trackId);
+  const currentIdx = queueIds.indexOf(currentTrackId);
+  if (currentIdx === -1) {
+    queueIds.unshift(trackId);
+  } else {
+    queueIds.splice(currentIdx + 1, 0, trackId);
+  }
+
+  renderQueue();
+  showToast(`Далее: ${track.name}`);
 }
 
 // ==================== ПАРСЕР ID3-ТЕГОВ (НАЗВАНИЕ, АРТИСТ, ОБЛОЖКА) ====================
@@ -253,8 +337,8 @@ async function parseAudioMetadata(file) {
           while (idx < payload.length && payload[idx] !== 0) {
             mime += String.fromCharCode(payload[idx++]);
           }
-          idx++; // null byte after mime
-          idx++; // picture type byte
+          idx++;
+          idx++;
           if (enc === 1 || enc === 2) {
             while (idx + 1 < payload.length && !(payload[idx] === 0 && payload[idx + 1] === 0)) idx += 2;
             idx += 2;
@@ -273,7 +357,6 @@ async function parseAudioMetadata(file) {
       }
     }
 
-    // Запасной вариант: ID3v1 в последних 128 байтах файла
     if ((!result.title || !result.artist) && file.size >= 128) {
       const tailBuf = await file.slice(file.size - 128, file.size).arrayBuffer();
       const tail = new Uint8Array(tailBuf);
@@ -658,6 +741,10 @@ sleepBtns.forEach((btn) => {
 
 // Извлечение контрастных цветов обложки для визуализатора
 function extractVisualizerColors(imgUrl) {
+  if (activeTheme === 'mono') {
+    visColors = { ...MONO_VIS_COLORS };
+    return;
+  }
   if (!imgUrl) {
     visColors = { ...DEFAULT_VIS_COLORS };
     return;
@@ -666,6 +753,10 @@ function extractVisualizerColors(imgUrl) {
   const img = new Image();
   img.crossOrigin = 'anonymous';
   img.onload = () => {
+    if (activeTheme === 'mono') {
+      visColors = { ...MONO_VIS_COLORS };
+      return;
+    }
     const offscreen = document.createElement('canvas');
     const size = 24;
     offscreen.width = size;
@@ -1153,6 +1244,15 @@ function renderTracks() {
     const actions = document.createElement('div');
     actions.className = 'track-actions';
 
+    const nextInQBtn = document.createElement('button');
+    nextInQBtn.className = 'icon-action-btn';
+    nextInQBtn.textContent = '↷';
+    nextInQBtn.title = 'Играть следующим';
+    nextInQBtn.onclick = (e) => {
+      e.stopPropagation();
+      playNextInQueue(track.id);
+    };
+
     const plBtn = document.createElement('button');
     plBtn.className = 'icon-action-btn' + (isTrackInAnyPlaylist(track.id) ? ' in-pl' : '');
     plBtn.textContent = '☰';
@@ -1190,7 +1290,7 @@ function renderTracks() {
       }
     };
 
-    actions.append(plBtn, fav, edit, del);
+    actions.append(nextInQBtn, plBtn, fav, edit, del);
     item.append(thumb, info, actions);
     trackListEl.appendChild(item);
   });
@@ -1249,32 +1349,144 @@ function renderQueue() {
   });
 }
 
-// Текст песни
+// ==================== ТЕКСТ ПЕСНИ, РАЗМЕТКА И ПОЛНЫЙ ЭКРАН ====================
+function formatTimestamp(sec) {
+  const m = Math.floor(sec / 60);
+  const s = (sec % 60).toFixed(2).padStart(5, '0');
+  return `${String(m).padStart(2, '0')}:${s}`;
+}
+
+function saveLyricsForCurrentTrack(newLyricsText) {
+  if (currentTrackId === null || !db) return;
+  const tx = db.transaction(STORE_NAME, 'readwrite');
+  const store = tx.objectStore(STORE_NAME);
+  const req = store.get(currentTrackId);
+  req.onsuccess = () => {
+    const rec = req.result;
+    if (!rec) return;
+    rec.lyrics = newLyricsText;
+    store.put(rec);
+  };
+  tx.oncomplete = () => {
+    const local = getTrackById(currentTrackId);
+    if (local) local.lyrics = newLyricsText;
+    renderLyrics(newLyricsText);
+  };
+}
+
+function getNextUnstampedIndex() {
+  return parsedLyrics.findIndex((line) => line.time === null);
+}
+
+function updateStampButtonUI() {
+  if (!isSyncMode) return;
+  const nextIdx = getNextUnstampedIndex();
+  if (nextIdx === -1) {
+    stampLineBtn.textContent = 'Все строчки размечены ✓';
+  } else {
+    stampLineBtn.textContent = `Метка [${formatTime(audio.currentTime)}] → стр. ${nextIdx + 1}`;
+  }
+}
+
+function stampLineAtIndex(targetIdx) {
+  if (targetIdx < 0 || targetIdx >= parsedLyrics.length) return;
+  const stamp = formatTimestamp(audio.currentTime || 0);
+  parsedLyrics[targetIdx].time = audio.currentTime || 0;
+
+  const rebuilt = parsedLyrics
+    .map((line, i) => {
+      if (i === targetIdx) return `[${stamp}] ${line.text}`;
+      if (line.time !== null) return `[${formatTimestamp(line.time)}] ${line.text}`;
+      return line.text;
+    })
+    .join('\n');
+
+  saveLyricsForCurrentTrack(rebuilt);
+}
+
+lyricsSyncModeBtn.addEventListener('click', () => {
+  isSyncMode = !isSyncMode;
+  lyricsSyncModeBtn.classList.toggle('active', isSyncMode);
+  lyricsSyncPanel.classList.toggle('hidden', !isSyncMode);
+  const track = currentTrackId !== null ? getTrackById(currentTrackId) : null;
+  renderLyrics(track ? track.lyrics || '' : '');
+});
+
+stampLineBtn.addEventListener('click', () => {
+  const nextIdx = getNextUnstampedIndex();
+  if (nextIdx !== -1) {
+    stampLineAtIndex(nextIdx);
+  }
+});
+
+clearStampsBtn.addEventListener('click', () => {
+  if (!parsedLyrics.length) return;
+  const plain = parsedLyrics.map((l) => l.text).join('\n');
+  saveLyricsForCurrentTrack(plain);
+  showToast('Таймкоды сброшены');
+});
+
 function renderLyrics(lyricsText) {
   parsedLyrics = [];
+  fsLyricsBody.innerHTML = '';
+
   if (!lyricsText || !lyricsText.trim()) {
+    lyricsToolbar.classList.add('hidden');
+    lyricsSyncPanel.classList.add('hidden');
+    isSyncMode = false;
+    lyricsSyncModeBtn.classList.remove('active');
     lyricsContentEl.innerHTML = '<div class="empty-list">Текст не добавлен. Нажмите ✎ на треке, чтобы вставить текст.</div>';
+    fsLyricsBody.innerHTML = '<div class="empty-list">Текст не добавлен</div>';
     return;
   }
 
+  lyricsToolbar.classList.remove('hidden');
+
   const lines = lyricsText.split('\n');
-  const timeRegex = /\[(\d{1,2}):(\d{2})(?:\.\d+)?\]\s*(.*)/;
+  const timeRegex = /\[(\d{1,2}):(\d{2}(?:\.\d+)?)\]\s*(.*)/;
 
   lyricsContentEl.innerHTML = '';
   lines.forEach((rawLine) => {
     const match = rawLine.match(timeRegex);
     const lineObj = match
-      ? { time: parseInt(match[1]) * 60 + parseInt(match[2]), text: match[3] }
+      ? { time: parseInt(match[1], 10) * 60 + parseFloat(match[2]), text: match[3] }
       : { time: null, text: rawLine };
 
     if (!lineObj.text.trim()) return;
+    const idx = parsedLyrics.length;
 
     const div = document.createElement('div');
     div.className = 'lyric-line';
-    div.textContent = lineObj.text;
 
     if (lineObj.time !== null) {
-      div.onclick = () => {
+      const tag = document.createElement('span');
+      tag.className = 'lyric-stamp-tag';
+      tag.textContent = formatTime(lineObj.time);
+      div.appendChild(tag);
+    }
+
+    const span = document.createElement('span');
+    span.textContent = lineObj.text;
+    div.appendChild(span);
+
+    div.onclick = () => {
+      if (isSyncMode) {
+        stampLineAtIndex(idx);
+        return;
+      }
+      if (lineObj.time !== null && audio.src) {
+        audio.currentTime = lineObj.time;
+        audio.play();
+        setPlayingState(true);
+      }
+    };
+
+    // Дублируем строчку в полноэкранный режим
+    const fsDiv = document.createElement('div');
+    fsDiv.className = 'fs-lyric-line';
+    fsDiv.textContent = lineObj.text;
+    if (lineObj.time !== null) {
+      fsDiv.onclick = () => {
         if (audio.src) {
           audio.currentTime = lineObj.time;
           audio.play();
@@ -1284,13 +1496,25 @@ function renderLyrics(lyricsText) {
     }
 
     lineObj.el = div;
+    lineObj.fsEl = fsDiv;
     parsedLyrics.push(lineObj);
     lyricsContentEl.appendChild(div);
+    fsLyricsBody.appendChild(fsDiv);
   });
+
+  if (isSyncMode) {
+    const nextIdx = getNextUnstampedIndex();
+    if (nextIdx !== -1 && parsedLyrics[nextIdx]) {
+      parsedLyrics[nextIdx].el.classList.add('next-to-stamp');
+    }
+    updateStampButtonUI();
+  }
 }
 
 function syncLyrics(currentTime) {
+  if (isSyncMode) updateStampButtonUI();
   if (!parsedLyrics.length) return;
+
   let activeIdx = -1;
   for (let i = 0; i < parsedLyrics.length; i++) {
     if (parsedLyrics[i].time !== null && currentTime >= parsedLyrics[i].time) {
@@ -1301,10 +1525,30 @@ function syncLyrics(currentTime) {
     const isActive = i === activeIdx;
     if (isActive && !line.el.classList.contains('active')) {
       line.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (!lyricsFsModal.classList.contains('hidden') && line.fsEl) {
+        line.fsEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     }
     line.el.classList.toggle('active', isActive);
+    if (line.fsEl) line.fsEl.classList.toggle('active', isActive);
   });
 }
+
+// Полноэкранный текст
+lyricsFullscreenBtn.addEventListener('click', () => {
+  const track = currentTrackId !== null ? getTrackById(currentTrackId) : null;
+  fsLyricsTitle.textContent = track ? track.name : 'Выберите трек';
+  fsLyricsArtist.textContent = track && track.artist ? track.artist : '';
+  lyricsFsModal.classList.remove('hidden');
+});
+
+closeFsLyricsBtn.addEventListener('click', () => {
+  lyricsFsModal.classList.add('hidden');
+});
+
+fsPlayBtn.addEventListener('click', () => playBtn.click());
+fsPrevBtn.addEventListener('click', () => prevBtn.click());
+fsNextBtn.addEventListener('click', () => nextBtn.click());
 
 function deleteTrack(id) {
   if (id === currentTrackId) {
@@ -1336,6 +1580,7 @@ function setPlayingState(playing) {
   iconPlay.classList.toggle('hidden', playing);
   iconPause.classList.toggle('hidden', !playing);
   miniPlayBtn.textContent = playing ? '❚❚' : '▶';
+  fsPlayBtn.textContent = playing ? '❚❚' : '▶';
 }
 
 function updateSeekVisual() {
@@ -1429,6 +1674,8 @@ function playTrackById(id) {
   applyContextBadgeUI();
   currentTitleEl.textContent = track.name;
   applyArtistToUI(track.artist);
+  fsLyricsTitle.textContent = track.name;
+  fsLyricsArtist.textContent = track.artist || '';
   miniTitle.textContent = track.name;
   miniPlayer.classList.remove('hidden');
   setPlayingState(true);
@@ -1571,7 +1818,6 @@ audioInput.addEventListener('change', async (e) => {
   selectedAudioFile = file;
   audioLabel.textContent = file.name;
 
-  // Авточтение ID3-тегов и встроенной обложки из MP3
   const meta = await parseAudioMetadata(file);
   if (!titleInput.value.trim()) {
     titleInput.value = meta.title || file.name.replace(/\.[^/.]+$/, '');
@@ -1617,6 +1863,8 @@ saveTrackBtn.addEventListener('click', () => {
       if (currentTrackId === editingTrackId) {
         currentTitleEl.textContent = record.name;
         applyArtistToUI(record.artist);
+        fsLyricsTitle.textContent = record.name;
+        fsLyricsArtist.textContent = record.artist || '';
         miniTitle.textContent = record.name;
         renderLyrics(record.lyrics);
         if (selectedImageFile) applyCoverToUI(record.coverBlob);
@@ -1755,6 +2003,7 @@ seekBar.addEventListener('input', () => {
   updateSeekVisual();
 });
 
+applyTheme(activeTheme);
 setVolume(lastVolume);
 applyEQ();
 updateModeUI();

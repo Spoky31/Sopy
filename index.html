@@ -10,13 +10,16 @@
   <link rel="stylesheet" href="style.css" />
   <title>Sopy</title>
 </head>
-<body data-mobile-tab="player">
+<body data-mobile-tab="player" data-theme="adaptive">
   <!-- Динамический размытый фон -->
   <div class="ambient-bg">
     <div class="ambient-orb orb-1"></div>
     <div class="ambient-orb orb-2"></div>
     <img id="ambient-img" class="ambient-img hidden" alt="" />
   </div>
+
+  <!-- Всплывающее уведомление (Toast) -->
+  <div id="toast" class="toast hidden"></div>
 
   <div class="app-layout">
     <!-- Левая панель: Медиатека и Плейлисты -->
@@ -185,15 +188,38 @@
         <div id="queue-list" class="queue-list"></div>
       </div>
 
-      <!-- Текст песни -->
+      <!-- Текст песни + Разметка таймкодов + Полный экран -->
       <div id="lyrics-view" class="panel-body hidden">
+        <div id="lyrics-toolbar" class="lyrics-toolbar hidden">
+          <button id="lyrics-sync-mode-btn" class="preset-btn">⏱ Разметка</button>
+          <button id="lyrics-fullscreen-btn" class="preset-btn">⛶ Во весь экран</button>
+        </div>
+
+        <div id="lyrics-sync-panel" class="lyrics-sync-panel hidden">
+          <div class="sleep-status">Включите трек и нажимайте кнопку ниже в начале каждой строчки:</div>
+          <div class="sync-panel-actions">
+            <button id="stamp-line-btn" class="stamp-btn">Поставить метку [00:00]</button>
+            <button id="clear-stamps-btn" class="preset-btn" title="Сбросить таймкоды">Сброс</button>
+          </div>
+        </div>
+
         <div id="lyrics-content" class="lyrics-content">
           <div class="empty-list">Текст не добавлен. Нажмите ✎ на треке, чтобы вставить текст.</div>
         </div>
       </div>
 
-      <!-- Звук: Эквалайзер, Таймер сна, Статистика и Бэкап -->
+      <!-- Звук: Темы, Эквалайзер, Таймер сна, Статистика и Бэкап -->
       <div id="sound-view" class="panel-body hidden">
+        <!-- Темы оформления -->
+        <div class="sound-section">
+          <div class="section-title">Тема оформления</div>
+          <div class="theme-grid">
+            <button class="theme-btn active" data-theme="adaptive">Адаптивная</button>
+            <button class="theme-btn" data-theme="mono">Монохром</button>
+            <button class="theme-btn" data-theme="obsidian">Обсидиан</button>
+          </div>
+        </div>
+
         <div id="eq-section" class="sound-section">
           <div class="section-title">Эквалайзер</div>
           <div class="eq-presets">
@@ -288,6 +314,23 @@
       <span>Ещё</span>
     </button>
   </nav>
+
+  <!-- Полноэкранный режим текста песни -->
+  <div id="lyrics-fullscreen-modal" class="fullscreen-lyrics hidden">
+    <div class="fs-lyrics-header">
+      <div class="fs-lyrics-meta">
+        <div id="fs-lyrics-title" class="fs-lyrics-title">Название трека</div>
+        <div id="fs-lyrics-artist" class="fs-lyrics-artist"></div>
+      </div>
+      <button id="close-fs-lyrics-btn" class="glass-btn fs-close-btn" aria-label="Закрыть">✕</button>
+    </div>
+    <div id="fs-lyrics-body" class="fs-lyrics-body"></div>
+    <div class="fs-lyrics-footer">
+      <button id="fs-prev-btn" class="nav-btn" aria-label="Предыдущий">⏮</button>
+      <button id="fs-play-btn" class="glass-btn fs-play-btn" aria-label="Пуск/Пауза">▶</button>
+      <button id="fs-next-btn" class="nav-btn" aria-label="Следующий">⏭</button>
+    </div>
+  </div>
 
   <!-- Модальное окно добавления / редактирования трека -->
   <div id="add-modal" class="modal hidden">
