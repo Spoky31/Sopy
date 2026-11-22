@@ -19,22 +19,24 @@
   </div>
 
   <div class="app-layout">
-    <!-- Левая панель: Медиатека -->
+    <!-- Левая панель: Медиатека и Плейлисты -->
     <aside class="sidebar glass-panel" data-panel="library">
       <div class="panel-header">
-        <span>Медиатека</span>
+        <span id="library-header-title">Медиатека</span>
         <div class="header-right">
+          <button id="delete-playlist-btn" class="mini-danger-btn hidden" title="Удалить плейлист" aria-label="Удалить плейлист">🗑</button>
           <span id="track-count" class="badge">0</span>
-          <button id="mobile-add-btn" class="mini-add-btn" aria-label="Добавить">+</button>
+          <button id="mobile-add-btn" class="mini-add-btn" aria-label="Добавить трек">+</button>
         </div>
       </div>
 
-      <!-- Поиск и фильтр Избранного -->
+      <!-- Поиск, фильтры и лента плейлистов -->
       <div class="library-tools">
         <input id="search-input" type="search" class="search-input" placeholder="Поиск треков и исполнителей..." />
-        <div class="filter-pills">
-          <button id="filter-all" class="pill-btn active">Все</button>
-          <button id="filter-fav" class="pill-btn">♥ Избранное</button>
+        <div id="playlist-bar" class="playlist-bar">
+          <button id="filter-all" class="pill-btn active" data-filter="all">Все</button>
+          <button id="filter-fav" class="pill-btn" data-filter="fav">♥ Избранное</button>
+          <button id="create-playlist-btn" class="pill-btn create-pl-btn">+ Плейлист</button>
         </div>
       </div>
 
@@ -68,10 +70,12 @@
         <!-- Название трека, исполнитель и Избранное -->
         <div class="title-row">
           <div class="title-block">
+            <div id="current-context-badge" class="context-badge hidden"></div>
             <div id="current-title" class="song-title">Выберите трек</div>
             <div id="current-artist" class="song-subtitle hidden"></div>
           </div>
-          <button id="current-fav-btn" class="fav-btn" aria-label="В избранное">♡</button>
+          <button id="current-playlist-btn" class="fav-btn" aria-label="Добавить в плейлист" title="В плейлист">☰</button>
+          <button id="current-fav-btn" class="fav-btn" aria-label="В избранное" title="В избранное">♡</button>
         </div>
 
         <!-- Музыкальный визуализатор -->
@@ -177,7 +181,7 @@
 
       <!-- Очередь -->
       <div id="queue-view" class="panel-body">
-        <div class="queue-hint">Перетаскивайте треки для изменения порядка</div>
+        <div id="queue-hint" class="queue-hint">Перетаскивайте треки для изменения порядка</div>
         <div id="queue-list" class="queue-list"></div>
       </div>
 
@@ -260,7 +264,7 @@
     </button>
   </nav>
 
-  <!-- Модальное окно добавления / редактирования -->
+  <!-- Модальное окно добавления / редактирования трека -->
   <div id="add-modal" class="modal hidden">
     <div class="modal-box glass-panel">
       <h2 id="modal-title">Новый трек</h2>
@@ -285,6 +289,33 @@
       <div class="modal-actions">
         <button id="cancel-modal-btn" class="modal-btn secondary">Отмена</button>
         <button id="save-track-btn" class="modal-btn primary">Добавить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно создания плейлиста -->
+  <div id="playlist-create-modal" class="modal hidden">
+    <div class="modal-box glass-panel">
+      <h2>Новый плейлист</h2>
+      <input id="playlist-name-input" type="text" class="text-input" placeholder="Название плейлиста (например, В машину)" maxlength="40" />
+      <div class="modal-actions">
+        <button id="cancel-playlist-create-btn" class="modal-btn secondary">Отмена</button>
+        <button id="save-playlist-create-btn" class="modal-btn primary">Создать</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно добавления трека в плейлисты -->
+  <div id="track-playlists-modal" class="modal hidden">
+    <div class="modal-box glass-panel">
+      <h2 id="track-playlists-title">Добавить в плейлист</h2>
+      <div id="track-playlists-list" class="playlist-check-list"></div>
+      <div class="quick-create-row">
+        <input id="quick-playlist-input" type="text" class="text-input" placeholder="Или создать новый плейлист..." maxlength="40" />
+        <button id="quick-playlist-add-btn" class="quick-add-btn">+</button>
+      </div>
+      <div class="modal-actions">
+        <button id="close-track-playlists-btn" class="modal-btn primary">Готово</button>
       </div>
     </div>
   </div>
