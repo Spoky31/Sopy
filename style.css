@@ -1,10 +1,10 @@
 :root {
   --bg-base: #0d0e12;
-  --surface-bg: rgba(20, 22, 28, 0.78);
+  --surface-bg: rgba(20, 22, 28, 0.8);
   --surface-elevated: rgba(255, 255, 255, 0.055);
   --border-subtle: rgba(255, 255, 255, 0.09);
   --border-strong: rgba(255, 255, 255, 0.16);
-  --shadow-panel: 0 16px 40px rgba(0, 0, 0, 0.42);
+  --shadow-panel: 0 18px 44px rgba(0, 0, 0, 0.45);
   --ease-ui: cubic-bezier(0.22, 1, 0.36, 1);
   --text-main: rgba(245, 246, 250, 0.95);
   --text-secondary: rgba(245, 246, 250, 0.56);
@@ -34,7 +34,7 @@ body {
   height: 100%;
   min-height: 100vh;
   overflow: hidden;
-  padding: calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
+  padding: calc(14px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
 }
 
 body.is-ios #eq-section,
@@ -57,7 +57,7 @@ body.is-ios .volume-block {
 
 body[data-theme="mono"] {
   --bg-base: #0b0b0d;
-  --surface-bg: rgba(18, 18, 21, 0.82);
+  --surface-bg: rgba(18, 18, 21, 0.84);
   --surface-elevated: rgba(255, 255, 255, 0.05);
   --border-subtle: rgba(255, 255, 255, 0.1);
   --border-strong: rgba(255, 255, 255, 0.2);
@@ -80,7 +80,7 @@ body[data-theme="mono"] .ambient-img {
 
 body[data-theme="obsidian"] {
   --bg-base: #050608;
-  --surface-bg: rgba(11, 12, 16, 0.86);
+  --surface-bg: rgba(11, 12, 16, 0.88);
   --surface-elevated: rgba(255, 255, 255, 0.04);
   --border-subtle: rgba(255, 255, 255, 0.07);
   --border-strong: rgba(255, 255, 255, 0.14);
@@ -180,14 +180,14 @@ body[data-theme="obsidian"] .ambient-img {
 }
 
 .action-btn {
-  background: var(--surface-elevated);
+  background: rgba(255, 255, 255, 0.08);
   border: 1px solid var(--border-strong);
   color: var(--text-main);
   transition: transform 0.18s var(--ease-ui), background 0.18s ease, border-color 0.18s ease;
 }
 
 .action-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .action-btn:active {
@@ -197,18 +197,18 @@ body[data-theme="obsidian"] .ambient-img {
 /* Трёхколоночная сетка на ПК */
 .app-layout {
   display: flex;
-  gap: 12px;
+  gap: 16px;
   height: 100%;
   width: 100%;
-  max-width: 1340px;
+  max-width: 1520px;
   margin: 0 auto;
 }
 
 .sidebar,
 .right-panel {
-  width: 27%;
-  min-width: 250px;
-  max-width: 330px;
+  width: 28%;
+  min-width: 270px;
+  max-width: 370px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -246,6 +246,16 @@ body[data-theme="obsidian"] .ambient-img {
   background: var(--surface-elevated);
   color: var(--text-secondary);
   white-space: nowrap;
+}
+
+.header-add-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
 }
 
 .mini-add-btn {
@@ -375,7 +385,7 @@ body[data-theme="obsidian"] .ambient-img {
   color: var(--text-secondary);
 }
 
-/* Чистая строка трека с тонким разделителем */
+/* Чистая строка трека: действия появляются при наведении */
 .track-item {
   display: flex;
   align-items: center;
@@ -449,14 +459,21 @@ body[data-theme="obsidian"] .ambient-img {
   font-size: 13px;
   padding: 0 2px;
   cursor: grab;
-  opacity: 0.7;
+  opacity: 0.65;
 }
 
 .track-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 1px;
   flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.16s ease;
+}
+
+.track-item:hover .track-actions,
+.track-item:focus-within .track-actions {
+  opacity: 1;
 }
 
 .icon-action-btn {
@@ -464,18 +481,18 @@ body[data-theme="obsidian"] .ambient-img {
   border: none;
   color: var(--text-secondary);
   font-size: 12px;
-  width: 24px;
-  height: 24px;
-  border-radius: 8px;
+  width: 23px;
+  height: 23px;
+  border-radius: 7px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.18s ease, color 0.18s ease;
+  transition: background 0.16s ease, color 0.16s ease;
 }
 
 .icon-action-btn:hover {
-  background: var(--surface-elevated);
+  background: rgba(255, 255, 255, 0.12);
   color: var(--text-main);
 }
 
@@ -916,36 +933,22 @@ body[data-theme="obsidian"] .ambient-img {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px 18px;
+  padding: 24px 20px;
   overflow: hidden;
-}
-
-.add-circle-btn {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 38px;
-  height: 38px;
-  border-radius: var(--radius-control);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 2;
 }
 
 .player-content {
   width: 100%;
-  max-width: 348px;
+  max-width: 376px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 13px;
+  gap: 14px;
 }
 
 .cover-wrapper {
   width: 100%;
-  max-width: 256px;
+  max-width: 296px;
   aspect-ratio: 1 / 1;
 }
 
@@ -956,17 +959,17 @@ body[data-theme="obsidian"] .ambient-img {
   overflow: hidden;
   background: var(--surface-elevated);
   border: 1px solid var(--border-strong);
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.48);
+  box-shadow: 0 22px 52px rgba(0, 0, 0, 0.52);
   display: flex;
   align-items: center;
   justify-content: center;
-  transform: scale(0.96);
+  transform: scale(0.97);
   transition: transform 0.25s var(--ease-ui), box-shadow 0.25s ease;
 }
 
 body.is-playing .cover-box {
   transform: scale(1);
-  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.58);
+  box-shadow: 0 26px 60px rgba(0, 0, 0, 0.62);
 }
 
 .cover-box img {
@@ -1444,8 +1447,16 @@ body.is-playing .cover-box {
     display: flex;
   }
 
+  .header-add-btn {
+    display: none;
+  }
+
   .mini-add-btn {
     display: flex;
+  }
+
+  .track-actions {
+    opacity: 1;
   }
 
   .cover-wrapper {
@@ -1535,13 +1546,6 @@ body.is-playing .cover-box {
 
   .main-player {
     padding: 12px 18px;
-  }
-
-  .add-circle-btn {
-    top: 12px;
-    right: 12px;
-    width: 34px;
-    height: 34px;
   }
 
   .player-content {
