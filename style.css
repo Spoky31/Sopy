@@ -42,6 +42,100 @@ body.is-ios .volume-block {
   display: none;
 }
 
+/* ==================== АНИМАЦИИ ИНТЕРФЕЙСА ==================== */
+@keyframes panelReveal {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes modalReveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes eqBarBounce {
+  0%, 100% {
+    transform: scaleY(0.32);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.panel-body:not(.hidden) {
+  animation: panelReveal 0.2s var(--ease-ui);
+}
+
+.modal:not(.hidden) .modal-box {
+  animation: modalReveal 0.22s var(--ease-ui);
+}
+
+.fullscreen-lyrics:not(.hidden) {
+  animation: panelReveal 0.22s var(--ease-ui);
+}
+
+/* Переход трека в плеере */
+.track-swap-fade {
+  opacity: 0;
+  transform: translateY(5px);
+}
+
+.cover-box img,
+.song-title,
+.song-subtitle {
+  transition: opacity 0.22s var(--ease-ui), transform 0.24s var(--ease-ui);
+}
+
+/* Мини-эквалайзер у активного трека */
+.now-playing-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+  margin-left: 6px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.now-playing-bars i {
+  display: block;
+  width: 2.5px;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent-soft);
+  transform-origin: bottom;
+  transform: scaleY(0.35);
+  transition: transform 0.2s ease;
+}
+
+.now-playing-bars i:nth-child(2) {
+  transform: scaleY(0.65);
+}
+
+body.is-playing .now-playing-bars i {
+  animation: eqBarBounce 0.78s ease-in-out infinite;
+}
+
+body.is-playing .now-playing-bars i:nth-child(2) {
+  animation-delay: -0.26s;
+}
+
+body.is-playing .now-playing-bars i:nth-child(3) {
+  animation-delay: -0.52s;
+}
+
 /* ==================== ТЕМЫ ОФОРМЛЕНИЯ ==================== */
 .ambient-bg {
   position: fixed;
@@ -119,6 +213,7 @@ body[data-theme="obsidian"] .ambient-img {
   z-index: 200;
   pointer-events: none;
   white-space: nowrap;
+  animation: panelReveal 0.18s var(--ease-ui);
 }
 
 .app-layout,
@@ -183,7 +278,7 @@ body[data-theme="obsidian"] .ambient-img {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid var(--border-strong);
   color: var(--text-main);
-  transition: transform 0.18s var(--ease-ui), background 0.18s ease, border-color 0.18s ease;
+  transition: transform 0.16s var(--ease-ui), background 0.16s ease, border-color 0.16s ease;
 }
 
 .action-btn:hover {
@@ -191,7 +286,7 @@ body[data-theme="obsidian"] .ambient-img {
 }
 
 .action-btn:active {
-  transform: scale(0.94);
+  transform: scale(0.93);
 }
 
 /* Трёхколоночная сетка на ПК */
@@ -342,12 +437,16 @@ body[data-theme="obsidian"] .ambient-img {
   font-family: inherit;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+  transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease, transform 0.14s var(--ease-ui);
 }
 
 .pill-btn:hover {
   color: var(--text-main);
   background: var(--surface-elevated);
+}
+
+.pill-btn:active {
+  transform: scale(0.96);
 }
 
 .pill-btn.active {
@@ -385,7 +484,7 @@ body[data-theme="obsidian"] .ambient-img {
   color: var(--text-secondary);
 }
 
-/* Чистая строка трека: действия появляются при наведении */
+/* Чистая строка трека */
 .track-item {
   display: flex;
   align-items: center;
@@ -394,7 +493,7 @@ body[data-theme="obsidian"] .ambient-img {
   border-radius: var(--radius-card);
   border-bottom: 1px solid rgba(255, 255, 255, 0.045);
   cursor: pointer;
-  transition: background 0.18s ease;
+  transition: background 0.16s ease;
 }
 
 .track-item:last-child {
@@ -437,9 +536,15 @@ body[data-theme="obsidian"] .ambient-img {
 }
 
 .track-item-name {
+  display: flex;
+  align-items: center;
   font-size: 13px;
   font-weight: 600;
   color: var(--text-main);
+  overflow: hidden;
+}
+
+.track-name-text {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -488,12 +593,16 @@ body[data-theme="obsidian"] .ambient-img {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.16s ease, color 0.16s ease;
+  transition: background 0.16s ease, color 0.16s ease, transform 0.14s var(--ease-ui);
 }
 
 .icon-action-btn:hover {
   background: rgba(255, 255, 255, 0.12);
   color: var(--text-main);
+}
+
+.icon-action-btn:active {
+  transform: scale(0.88);
 }
 
 .icon-action-btn.fav.is-fav {
@@ -528,7 +637,7 @@ body[data-theme="obsidian"] .ambient-img {
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
-  transition: background 0.18s ease, color 0.18s ease;
+  transition: background 0.16s ease, color 0.16s ease;
 }
 
 .tab-btn.active {
@@ -572,6 +681,7 @@ body[data-theme="obsidian"] .ambient-img {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  animation: panelReveal 0.18s var(--ease-ui);
 }
 
 .sync-panel-actions {
@@ -612,7 +722,7 @@ body[data-theme="obsidian"] .ambient-img {
   line-height: 1.48;
   color: var(--text-secondary);
   font-weight: 400;
-  transition: color 0.22s ease, transform 0.22s var(--ease-ui);
+  transition: color 0.2s ease, transform 0.22s var(--ease-ui);
   cursor: pointer;
 }
 
@@ -638,7 +748,7 @@ body[data-theme="obsidian"] .ambient-img {
 .lyric-line.active {
   color: var(--text-main);
   font-weight: 600;
-  transform: translateX(2px);
+  transform: translateX(3px);
 }
 
 /* Полноэкранный режим текста */
@@ -717,11 +827,12 @@ body[data-theme="obsidian"] .ambient-img {
   font-weight: 600;
   color: rgba(245, 246, 250, 0.34);
   cursor: pointer;
-  transition: color 0.22s ease;
+  transition: color 0.2s ease, transform 0.22s var(--ease-ui);
 }
 
 .fs-lyric-line.active {
   color: var(--text-main);
+  transform: translateX(4px);
 }
 
 .fs-lyrics-footer {
@@ -786,7 +897,7 @@ body[data-theme="obsidian"] .ambient-img {
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
-  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+  transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
 }
 
 .theme-btn.active {
@@ -814,11 +925,12 @@ body[data-theme="obsidian"] .ambient-img {
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
-  transition: background 0.18s ease, color 0.18s ease;
+  transition: background 0.16s ease, color 0.16s ease, transform 0.14s var(--ease-ui);
 }
 
 .preset-btn:active,
 .sleep-btn:active {
+  transform: scale(0.95);
   background: var(--accent-surface);
   color: var(--text-main);
 }
@@ -867,6 +979,12 @@ body[data-theme="obsidian"] .ambient-img {
   height: 13px;
   border-radius: 50%;
   background: var(--text-main);
+  transition: transform 0.16s var(--ease-ui);
+}
+
+.eq-range:hover::-webkit-slider-thumb,
+.eq-range:active::-webkit-slider-thumb {
+  transform: scale(1.18);
 }
 
 .sleep-status {
@@ -890,7 +1008,7 @@ body[data-theme="obsidian"] .ambient-img {
   padding: 6px 8px;
   border-radius: 10px;
   cursor: pointer;
-  transition: background 0.18s ease;
+  transition: background 0.16s ease;
 }
 
 .top-track-row:hover {
@@ -964,7 +1082,7 @@ body[data-theme="obsidian"] .ambient-img {
   align-items: center;
   justify-content: center;
   transform: scale(0.97);
-  transition: transform 0.25s var(--ease-ui), box-shadow 0.25s ease;
+  transition: transform 0.24s var(--ease-ui), box-shadow 0.24s ease;
 }
 
 body.is-playing .cover-box {
@@ -1033,7 +1151,7 @@ body.is-playing .cover-box {
   justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
-  transition: transform 0.18s var(--ease-ui), color 0.18s ease, background 0.18s ease;
+  transition: transform 0.16s var(--ease-ui), color 0.16s ease, background 0.16s ease;
 }
 
 .fav-btn.is-fav {
@@ -1049,7 +1167,7 @@ body.is-playing .cover-box {
 }
 
 .fav-btn:active {
-  transform: scale(0.9);
+  transform: scale(0.88);
 }
 
 #visualizer {
@@ -1075,6 +1193,12 @@ body.is-playing .cover-box {
   );
   outline: none;
   cursor: pointer;
+  transition: height 0.16s var(--ease-ui);
+}
+
+#seek-bar:hover,
+#seek-bar:active {
+  height: 6px;
 }
 
 #seek-bar::-webkit-slider-thumb {
@@ -1083,6 +1207,12 @@ body.is-playing .cover-box {
   height: 13px;
   border-radius: 50%;
   background: var(--text-main);
+  transition: transform 0.16s var(--ease-ui);
+}
+
+#seek-bar:hover::-webkit-slider-thumb,
+#seek-bar:active::-webkit-slider-thumb {
+  transform: scale(1.22);
 }
 
 .time-row {
@@ -1113,7 +1243,7 @@ body.is-playing .cover-box {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 0.18s var(--ease-ui), background 0.18s ease, color 0.18s ease;
+  transition: transform 0.16s var(--ease-ui), background 0.16s ease, color 0.16s ease;
 }
 
 .nav-btn:hover {
@@ -1122,7 +1252,7 @@ body.is-playing .cover-box {
 }
 
 .nav-btn:active {
-  transform: scale(0.9);
+  transform: scale(0.88);
 }
 
 .play-pause-btn {
@@ -1159,7 +1289,7 @@ body.is-playing .cover-box {
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
-  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s var(--ease-ui);
+  transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease, transform 0.14s var(--ease-ui);
 }
 
 .mode-btn:active {
@@ -1194,6 +1324,11 @@ body.is-playing .cover-box {
   justify-content: center;
   cursor: pointer;
   padding: 2px;
+  transition: transform 0.14s var(--ease-ui);
+}
+
+.vol-icon-btn:active {
+  transform: scale(0.88);
 }
 
 #volume-bar {
@@ -1217,6 +1352,12 @@ body.is-playing .cover-box {
   height: 12px;
   border-radius: 50%;
   background: var(--text-main);
+  transition: transform 0.16s var(--ease-ui);
+}
+
+#volume-bar:hover::-webkit-slider-thumb,
+#volume-bar:active::-webkit-slider-thumb {
+  transform: scale(1.18);
 }
 
 .vol-pct {
@@ -1245,6 +1386,7 @@ body.is-playing .cover-box {
   justify-content: center;
   padding: 20px;
   z-index: 100;
+  animation: panelReveal 0.18s var(--ease-ui);
 }
 
 .modal-box {
@@ -1278,6 +1420,12 @@ body.is-playing .cover-box {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: background 0.16s ease, border-color 0.16s ease;
+}
+
+.file-picker-btn:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: var(--border-strong);
 }
 
 .image-preview {
@@ -1287,6 +1435,7 @@ body.is-playing .cover-box {
   border-radius: var(--radius-card);
   border: 1px solid var(--border-subtle);
   align-self: center;
+  animation: modalReveal 0.2s var(--ease-ui);
 }
 
 .text-input {
@@ -1299,6 +1448,11 @@ body.is-playing .cover-box {
   font-size: 13px;
   font-family: inherit;
   outline: none;
+  transition: border-color 0.16s ease;
+}
+
+.text-input:focus {
+  border-color: var(--border-strong);
 }
 
 .lyrics-textarea {
@@ -1323,7 +1477,7 @@ body.is-playing .cover-box {
   background: var(--surface-elevated);
   border: 1px solid var(--border-subtle);
   cursor: pointer;
-  transition: background 0.18s ease, border-color 0.18s ease;
+  transition: background 0.16s ease, border-color 0.16s ease;
 }
 
 .playlist-check-item.checked {
@@ -1361,6 +1515,7 @@ body.is-playing .cover-box {
   font-size: 11px;
   font-weight: 700;
   flex-shrink: 0;
+  transition: background 0.16s ease, color 0.16s ease;
 }
 
 .playlist-check-item.checked .playlist-check-mark {
@@ -1400,6 +1555,11 @@ body.is-playing .cover-box {
   font-family: inherit;
   cursor: pointer;
   border: none;
+  transition: transform 0.14s var(--ease-ui), background 0.16s ease;
+}
+
+.modal-btn:active {
+  transform: scale(0.96);
 }
 
 .modal-btn.primary {
@@ -1445,6 +1605,7 @@ body.is-playing .cover-box {
   body[data-mobile-tab="player"] .main-player,
   body[data-mobile-tab="extra"] .right-panel {
     display: flex;
+    animation: panelReveal 0.2s var(--ease-ui);
   }
 
   .header-add-btn {
@@ -1529,7 +1690,11 @@ body.is-playing .cover-box {
     font-family: inherit;
     padding: 3px 0;
     cursor: pointer;
-    transition: color 0.18s ease;
+    transition: color 0.16s ease, transform 0.14s var(--ease-ui);
+  }
+
+  .mobile-tab:active {
+    transform: scale(0.94);
   }
 
   .mobile-tab.active {

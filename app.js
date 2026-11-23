@@ -33,6 +33,7 @@ let selectedImageFile = null;
 let managingPlaylistsForTrackId = null;
 let fadeTimer = null;
 let toastTimer = null;
+let swapAnimTimer = null;
 
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -222,6 +223,23 @@ function showToast(text) {
   toastTimer = setTimeout(() => {
     toastEl.classList.add('hidden');
   }, 2000);
+}
+
+function triggerTrackSwapAnimation() {
+  const animatedEls = [coverImg, currentTitleEl, currentArtistEl];
+  animatedEls.forEach((el) => el.classList.add('track-swap-fade'));
+  clearTimeout(swapAnimTimer);
+  swapAnimTimer = setTimeout(() => {
+    animatedEls.forEach((el) => el.classList.remove('track-swap-fade'));
+  }, 40);
+}
+
+function createPlayingBarsEl() {
+  const bars = document.createElement('span');
+  bars.className = 'now-playing-bars';
+  bars.setAttribute('aria-hidden', 'true');
+  bars.innerHTML = '<i></i><i></i><i></i>';
+  return bars;
 }
 
 // ==================== ТЕМЫ ОФОРМЛЕНИЯ ====================
@@ -1160,14 +1178,23 @@ function createThumbEl(track) {
   return thumb;
 }
 
-function createTrackInfoEl(track) {
+function createTrackInfoEl(track, isActive = false) {
   const info = document.createElement('div');
   info.className = 'track-info';
 
-  const name = document.createElement('div');
-  name.className = 'track-item-name';
-  name.textContent = track.name;
-  info.appendChild(name);
+  const nameRow = document.createElement('div');
+  nameRow.className = 'track-item-name';
+
+  const nameText = document.createElement('span');
+  nameText.className = 'track-name-text';
+  nameText.textContent = track.name;
+  nameRow.appendChild(nameText);
+
+  if (isActive) {
+    nameRow.appendChild(createPlayingBarsEl());
+  }
+
+  info.appendChild(nameRow);
 
   if (track.artist) {
     const artist = document.createElement('div');
@@ -1223,8 +1250,9 @@ function renderTracks() {
 
   trackListEl.innerHTML = '';
   visibleTracks.forEach((track) => {
+    const isActive = track.id === currentTrackId;
     const item = document.createElement('div');
-    item.className = 'track-item' + (track.id === currentTrackId ? ' active' : '');
+    item.className = 'track-item' + (isActive ? ' active' : '');
     item.onclick = () => {
       queueIds = visibleTracks.map((t) => t.id);
       activeContextLabel = getCurrentContextName();
@@ -1238,7 +1266,7 @@ function renderTracks() {
     });
 
     const thumb = createThumbEl(track);
-    const info = createTrackInfoEl(track);
+    const info = createTrackInfoEl(track, isActive);
 
     const actions = document.createElement('div');
     actions.className = 'track-actions';
@@ -1309,8 +1337,9 @@ function renderQueue() {
 
   queueListEl.innerHTML = '';
   queueTracks.forEach((track, idx) => {
+    const isActive = track.id === currentTrackId;
     const item = document.createElement('div');
-    item.className = 'track-item' + (track.id === currentTrackId ? ' active' : '');
+    item.className = 'track-item' + (isActive ? ' active' : '');
     item.draggable = true;
 
     item.addEventListener('dragstart', () => {
@@ -1341,7 +1370,7 @@ function renderQueue() {
     handle.textContent = '⋮⋮';
 
     const thumb = createThumbEl(track);
-    const info = createTrackInfoEl(track);
+    const info = createTrackInfoEl(track, isActive);
 
     item.append(handle, thumb, info);
     queueListEl.appendChild(item);
@@ -1668,6 +1697,7 @@ function playTrackById(id) {
     incrementPlayCount(id);
   }).catch(() => {});
 
+  triggerTrackSwapAnimation();
   applyContextBadgeUI();
   currentTitleEl.textContent = track.name;
   applyArtistToUI(track.artist);
