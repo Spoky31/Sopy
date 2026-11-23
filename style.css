@@ -86,7 +86,6 @@ body.is-ios .volume-block {
   animation: panelReveal 0.22s var(--ease-ui);
 }
 
-/* Переход трека в плеере */
 .track-swap-fade {
   opacity: 0;
   transform: translateY(5px);
@@ -98,7 +97,6 @@ body.is-ios .volume-block {
   transition: opacity 0.22s var(--ease-ui), transform 0.24s var(--ease-ui);
 }
 
-/* Мини-эквалайзер у активного трека */
 .now-playing-bars {
   display: inline-flex;
   align-items: flex-end;
@@ -1055,6 +1053,34 @@ body[data-theme="obsidian"] .ambient-img {
   overflow: hidden;
 }
 
+.now-playing-topbar {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  right: 16px;
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.topbar-context {
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 500;
+  color: var(--accent-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .player-content {
   width: 100%;
   max-width: 376px;
@@ -1620,8 +1646,24 @@ body.is-playing .cover-box {
     opacity: 1;
   }
 
+  .now-playing-topbar {
+    display: flex;
+  }
+
+  .main-player {
+    justify-content: space-between;
+    padding: 42px 16px 18px;
+  }
+
+  .player-content {
+    flex: 1;
+    justify-content: space-evenly;
+    gap: 10px;
+    max-width: 390px;
+  }
+
   .cover-wrapper {
-    max-width: 245px;
+    max-width: clamp(240px, 70vw, 330px);
   }
 
   /* Мини-плеер над нижней панелью */
@@ -1707,6 +1749,10 @@ body.is-playing .cover-box {
 @media (max-height: 520px) and (orientation: landscape) {
   body {
     gap: 8px;
+  }
+
+  .now-playing-topbar {
+    display: none;
   }
 
   .main-player {

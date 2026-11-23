@@ -89,6 +89,7 @@ const trackCountEl = document.getElementById('track-count');
 const coverImg = document.getElementById('cover-img');
 const coverPlaceholder = document.getElementById('cover-placeholder');
 const ambientImg = document.getElementById('ambient-img');
+const mobileContextLabel = document.getElementById('mobile-context-label');
 const currentContextBadge = document.getElementById('current-context-badge');
 const currentTitleEl = document.getElementById('current-title');
 const currentArtistEl = document.getElementById('current-artist');
@@ -1626,6 +1627,10 @@ function applyArtistToUI(artist) {
 }
 
 function applyContextBadgeUI() {
+  if (mobileContextLabel) {
+    mobileContextLabel.textContent = activeContextLabel || 'Все треки';
+  }
+
   if (activeContextLabel) {
     currentContextBadge.textContent = `Плейлист · ${activeContextLabel}`;
     currentContextBadge.classList.remove('hidden');
